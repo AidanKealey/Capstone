@@ -1,7 +1,7 @@
 # Capstone
 ELEC 498 | Group 38 | Haptic Computer Mouse Pad 
 
-## Authors:
+## Authors
 * Josh Glen
 * Nicholas Strzelczyk
 * Quinn McGill
