@@ -2,6 +2,10 @@
     "java.project.sourcePaths": ["./TestEnvironmentGUI/src/"],
     "java.project.outputPath": "./TestEnvironmentGUI/bin/",
     "java.project.referencedLibraries": [
-        "lib/**/*.jar"
+        "./lib/"
+    ],
+    "java.classpath": [
+        "./TestEnvironmentGUI/src/",
+        "./TestEnvironmentGUI/lib/jSerialComm-2.10.4.jar"
     ]
 }

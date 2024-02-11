@@ -1,0 +1,6 @@
+{
+    "java.project.referencedLibraries": [
+        "lib/**/*.jar",
+        "TestEnvironmentGUI\\lib\\jSerialComm-2.10.4.jar"
+    ]
+}

@@ -40,6 +40,7 @@ public class GamePanel extends JPanel implements ActionListener {
     private boolean guessExists;
     private boolean roundsComplete;
     private ArrayList<Integer> distList;
+    private ArduinoSerialWriter serialWriter;
 
     // ----- constructor and init ----- //
     public GamePanel(int titleBarHeight, int windowTopOffset) {
@@ -51,6 +52,8 @@ public class GamePanel extends JPanel implements ActionListener {
         this.roundsComplete = false;
         this.currentRound = 1;
         this.distList = new ArrayList<>();
+        this.serialWriter = new ArduinoSerialWriter();
+        this.serialWriter.setupSerialComm();
 
         // set initial random target
         generateNewTarget();
@@ -74,6 +77,7 @@ public class GamePanel extends JPanel implements ActionListener {
                     // display results screen
                     if (currentRound == MAX_ROUNDS) {
                         roundsComplete = true;
+                        serialWriter.closeSerialComm();
                     // enter next round
                     } else if (currentRound < MAX_ROUNDS) {
                         generateNewTarget();
@@ -115,6 +119,8 @@ public class GamePanel extends JPanel implements ActionListener {
     private void generateNewTarget() {
         int targetX = ThreadLocalRandom.current().nextInt(0+(2*TARGET_RADIUS), (int)WINDOW_SIZE.getWidth()-(2*TARGET_RADIUS)+1);
         int targetY = ThreadLocalRandom.current().nextInt(0+(2*TARGET_RADIUS), (int)WINDOW_SIZE.getHeight()-(2*TARGET_RADIUS)+1);
+        // TODO: Determine which coils should be turned on and send this to the Arduino
+        this.serialWriter.turnOnCoils("Hello");
         this.targetPos = new Point(targetX, targetY);
     }
 
