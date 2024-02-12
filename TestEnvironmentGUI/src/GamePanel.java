@@ -50,12 +50,12 @@ public class GamePanel extends JPanel implements ActionListener {
     public GamePanel(int titleBarHeight, int windowTopOffset) {
         WINDOW_SIZE = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds().getSize();
         CUSTOM_GREEN = new Color(30, 201, 139);
-        
+
         this.titleBarHeight = titleBarHeight;
         this.windowTopOffset = windowTopOffset;
         this.guessExists = false;
         this.roundsComplete = false;
-        this.currentRound = 1;
+        this.currentRound = 0;
         this.distList = new ArrayList<>();
         this.magPosList = new ArrayList<>();
         this.serialWriter = new ArduinoSerialWriter();
@@ -95,7 +95,6 @@ public class GamePanel extends JPanel implements ActionListener {
                     } else if (currentRound < MAX_ROUNDS) {
                         generateNewTarget();
                         guessExists = false;
-                        currentRound++;
                     }
 
                 } else { 
@@ -113,6 +112,8 @@ public class GamePanel extends JPanel implements ActionListener {
 
     // ----- game loop methods ----- //
     private void generateNewTarget() {
+        currentRound++;
+
         // randomly create new target x and y
         int targetX = ThreadLocalRandom.current().nextInt(0+(2*TARGET_RADIUS), (int)WINDOW_SIZE.getWidth()-(2*TARGET_RADIUS)+1);
         int targetY = ThreadLocalRandom.current().nextInt(0+(2*TARGET_RADIUS), (int)WINDOW_SIZE.getHeight()-(2*TARGET_RADIUS)+1);
