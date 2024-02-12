@@ -50,6 +50,7 @@ public class GamePanel extends JPanel implements ActionListener {
     public GamePanel(int titleBarHeight, int windowTopOffset) {
         WINDOW_SIZE = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds().getSize();
         CUSTOM_GREEN = new Color(30, 201, 139);
+        
         this.titleBarHeight = titleBarHeight;
         this.windowTopOffset = windowTopOffset;
         this.guessExists = false;
