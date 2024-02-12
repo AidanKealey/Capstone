@@ -39,7 +39,9 @@ public class GamePanel extends JPanel implements ActionListener {
     private Point guessPos;
     private boolean guessExists;
     private boolean roundsComplete;
+    private boolean arduinoConnected;
     private ArrayList<Integer> distList;
+    private ArrayList<Point> magPosList;
     private ArduinoSerialWriter serialWriter;
 
     // ----- constructor and init ----- //
@@ -52,8 +54,13 @@ public class GamePanel extends JPanel implements ActionListener {
         this.roundsComplete = false;
         this.currentRound = 1;
         this.distList = new ArrayList<>();
+        this.magPosList = new ArrayList<>();
         this.serialWriter = new ArduinoSerialWriter();
         this.serialWriter.setupSerialComm();
+        this.arduinoConnected = this.serialWriter.isArduinoConnected();
+
+        // initialize magnet positions on screen
+        initMagPositions();
 
         // set initial random target
         generateNewTarget();
@@ -77,7 +84,9 @@ public class GamePanel extends JPanel implements ActionListener {
                     // display results screen
                     if (currentRound == MAX_ROUNDS) {
                         roundsComplete = true;
-                        serialWriter.closeSerialComm();
+                        if (arduinoConnected) {
+                            serialWriter.closeSerialComm();
+                        }
                     // enter next round
                     } else if (currentRound < MAX_ROUNDS) {
                         generateNewTarget();
@@ -93,39 +102,50 @@ public class GamePanel extends JPanel implements ActionListener {
                 }
             }
         });
-
-        // key listener for space bar and next round
-        // this.addKeyListener(new KeyAdapter() {
-        //     @Override
-        //     public void keyPressed(KeyEvent ke) {
-        //         System.out.println("A KEY WAS PRESSED!");
-        //         if (guessExists) {
-        //             int key = ke.getKeyCode();
-        //             if (key == KeyEvent.VK_SPACE) {
-        //                 System.out.println("Space bar pressed!");
-        //                 if (currentRound <= MAX_ROUNDS) {
-        //                     generateNewTarget();
-        //                     guessExists = false;
-        //                 } else {
-        //                     // TODO: display results screen
-        //                 }
-        //             }
-        //         }
-        //     }
-        // });
     }
 
     // ----- game loop methods ----- //
     private void generateNewTarget() {
+        // randomly create new target x and y
         int targetX = ThreadLocalRandom.current().nextInt(0+(2*TARGET_RADIUS), (int)WINDOW_SIZE.getWidth()-(2*TARGET_RADIUS)+1);
         int targetY = ThreadLocalRandom.current().nextInt(0+(2*TARGET_RADIUS), (int)WINDOW_SIZE.getHeight()-(2*TARGET_RADIUS)+1);
-        // TODO: Determine which coils should be turned on and send this to the Arduino
-        this.serialWriter.turnOnCoils("Hello");
         this.targetPos = new Point(targetX, targetY);
+
+        // send activation string to arduino
+        String bitString = genCoilSerialString();
+        if (this.arduinoConnected) {
+            this.serialWriter.turnOnCoils(bitString);
+        }
     }
 
     private int calcDistance(Point a, Point b) {
         return (int) Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    private String genCoilSerialString() {
+        StringBuilder bitString = new StringBuilder(23);
+        for (Point p : this.magPosList) {
+            int hyp = calcDistance(p, this.targetPos);
+            int bit = (hyp < ACTIVATION_RADIUS) ? 1 : 0;
+            bitString.append(bit);
+        }
+        System.out.println("Round "+this.currentRound+": "+bitString.toString());
+        return bitString.toString();
+    }
+
+    private void initMagPositions() {
+        int xSpacing = (int) WINDOW_SIZE.getWidth() / 10;
+        int ySpacing = (int) (WINDOW_SIZE.getHeight()-(titleBarHeight + windowTopOffset)) / 6;
+        int colStart;
+        int colEnd;
+        for (int row=1; row<6; row++) {
+            colStart = (row % 2 == 0) ? 2 : 1;
+            colEnd = (row % 2 == 0) ? 9 : 10;
+            for (int col=colStart; col<colEnd; col+=2) {
+                // this saves the position of the top-left corner of each magnet circle
+                this.magPosList.add(new Point(col*xSpacing, row*ySpacing));
+            }
+        }
     }
    
     // ----- overriden methods ----- //
@@ -212,39 +232,15 @@ public class GamePanel extends JPanel implements ActionListener {
     }
 
     private void drawMagnetCircles(Graphics g) {
-        g.setColor(Color.gray);
-        int xSpacing = (int) WINDOW_SIZE.getWidth() / 10;
-        int ySpacing = (int) (WINDOW_SIZE.getHeight()-(titleBarHeight + windowTopOffset)) / 6;
-
-        // draw rows of 5 first
-        for (int row=1; row<6; row+=2) {
-            for (int col=1; col<10; col+=2) {
-                int xMag = (col*xSpacing)-MAGNET_RADIUS;
-                int yMag = (row*ySpacing)-MAGNET_RADIUS;
-                int hyp = (int)Math.hypot((xMag+MAGNET_RADIUS) - targetPos.x, (yMag+MAGNET_RADIUS) - targetPos.y);
-                if (hyp < ACTIVATION_RADIUS) {
-                    g.setColor(Color.blue);
-                    g.fillOval(xMag+MAGNET_RADIUS-5, yMag+MAGNET_RADIUS-5, 10, 10);
-                } else {
-                    g.setColor(Color.gray);
-                }
-                g.drawOval(xMag, yMag, MAGNET_RADIUS*2, MAGNET_RADIUS*2);
+        for (Point p : this.magPosList) {
+            int hyp = calcDistance(p, this.targetPos);
+            if (hyp < ACTIVATION_RADIUS) {
+                g.setColor(Color.blue);
+                g.fillOval(p.x-5, p.y-5, 10, 10);
+            } else {
+                g.setColor(Color.gray);
             }
-        }
-        // draw rows of 4 next
-        for (int row=2; row<5; row+=2) {
-            for (int col=2; col<9; col+=2) {
-                int xMag = (col*xSpacing)-MAGNET_RADIUS;
-                int yMag = (row*ySpacing)-MAGNET_RADIUS;
-                int hyp = (int)Math.hypot((xMag+MAGNET_RADIUS) - targetPos.x, (yMag+MAGNET_RADIUS) - targetPos.y);
-                if (hyp < ACTIVATION_RADIUS) {
-                    g.setColor(Color.blue);
-                    g.fillOval(xMag+MAGNET_RADIUS-5, yMag+MAGNET_RADIUS-5, 10, 10);
-                } else {
-                    g.setColor(Color.gray);
-                }
-                g.drawOval(xMag, yMag, MAGNET_RADIUS*2, MAGNET_RADIUS*2);
-            }
+            g.drawOval(p.x-MAGNET_RADIUS, p.y-MAGNET_RADIUS, MAGNET_RADIUS*2, MAGNET_RADIUS*2);
         }
     }
 

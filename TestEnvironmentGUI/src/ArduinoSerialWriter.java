@@ -13,11 +13,11 @@ public class ArduinoSerialWriter {
             }
         }
         if (this.serialPort == null) {
-            System.out.println("Arduino port not found.");
+            System.out.println("WARNING: Arduino port not found.");
             return;
         }
         if (!this.serialPort.openPort()) {
-            System.out.println("Failed to open Arduino port.");
+            System.out.println("ERROR: Failed to open Arduino port.");
             return;
         }
     }
@@ -28,5 +28,9 @@ public class ArduinoSerialWriter {
 
     public void turnOnCoils(String coilString){
         this.serialPort.writeBytes(coilString.getBytes(), coilString.length());
+    }
+
+    public boolean isArduinoConnected() {
+        return (this.serialPort == null) ? false : true;
     }
 }
