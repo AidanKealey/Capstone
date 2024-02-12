@@ -27,6 +27,8 @@ public class GamePanel extends JPanel implements ActionListener {
     private final int MAGNET_RADIUS = 100;
     private final int TARGET_RADIUS = 50;
     private final int GUESS_RADIUS = 25;
+    private final String RESET_COILS = "00000000000000000000000";
+
     private static Dimension WINDOW_SIZE;
     private static Color CUSTOM_GREEN;
 
@@ -85,6 +87,7 @@ public class GamePanel extends JPanel implements ActionListener {
                     if (currentRound == MAX_ROUNDS) {
                         roundsComplete = true;
                         if (arduinoConnected) {
+                            serialWriter.turnOnCoils(RESET_COILS);
                             serialWriter.closeSerialComm();
                         }
                     // enter next round
@@ -99,6 +102,9 @@ public class GamePanel extends JPanel implements ActionListener {
                     guessPos = new Point(me.getX(), me.getY());
                     distList.add(calcDistance(guessPos, targetPos));
                     guessExists = true;
+                    if (arduinoConnected) {
+                        serialWriter.turnOnCoils(RESET_COILS);
+                    }
                 }
             }
         });

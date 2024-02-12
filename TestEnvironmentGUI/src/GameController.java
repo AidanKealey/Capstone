@@ -14,8 +14,6 @@ public class GameController implements ActionListener {
 
     public static Dimension WINDOW_SIZE;
 
-    private Boolean enableHaptic;
-
     private JFrame frame;
     private JPanel startPanel;
     private GamePanel gamePanel;
