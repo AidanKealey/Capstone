@@ -14,8 +14,10 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.concurrent.ThreadLocalRandom;
+
 import javax.swing.JPanel;
 import javax.swing.Timer;
 
@@ -39,15 +41,19 @@ public class GamePanel extends JPanel implements ActionListener {
     private Point mousePos;
     private Point targetPos;
     private Point guessPos;
+    private String username;
     private boolean guessExists;
     private boolean roundsComplete;
     private boolean arduinoConnected;
     private ArrayList<Integer> distList;
     private ArrayList<Point> magPosList;
+    private ArrayList<Double> guessTimeList;
     private ArduinoSerialWriter serialWriter;
 
+    // -------------------------------- //
     // ----- constructor and init ----- //
-    public GamePanel(int titleBarHeight, int windowTopOffset) {
+    // -------------------------------- //
+    public GamePanel(int titleBarHeight, int windowTopOffset, String username) {
         WINDOW_SIZE = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds().getSize();
         CUSTOM_GREEN = new Color(30, 201, 139);
 
@@ -56,8 +62,10 @@ public class GamePanel extends JPanel implements ActionListener {
         this.guessExists = false;
         this.roundsComplete = false;
         this.currentRound = 0;
+        this.username = username;
         this.distList = new ArrayList<Integer>();
         this.magPosList = new ArrayList<Point>();
+        this.guessTimeList = new ArrayList<Double>();
         this.serialWriter = new ArduinoSerialWriter();
         this.serialWriter.setupSerialComm();
         this.arduinoConnected = this.serialWriter.isArduinoConnected();
@@ -82,35 +90,15 @@ public class GamePanel extends JPanel implements ActionListener {
         // mouse clicks paint guesses on screen
         this.addMouseListener(new MouseAdapter() {
             @Override
-            public void mousePressed(MouseEvent me) {
-                if (guessExists) {
-                    // display results screen
-                    if (currentRound == MAX_ROUNDS) {
-                        roundsComplete = true;
-                        if (arduinoConnected) {
-                            serialWriter.turnOnCoils(RESET_COILS);
-                            serialWriter.closeSerialComm();
-                        }
-                    // enter next round
-                    } else if (currentRound < MAX_ROUNDS) {
-                        generateNewTarget();
-                        guessExists = false;
-                    }
-
-                } else { 
-                    // make new guess for current round
-                    guessPos = new Point(me.getX(), me.getY());
-                    distList.add(calcDistance(guessPos, targetPos));
-                    guessExists = true;
-                    if (arduinoConnected) {
-                        serialWriter.turnOnCoils(RESET_COILS);
-                    }
-                }
+            public void mousePressed(MouseEvent e) {
+                manageGameTraversal(e);
             }
         });
     }
 
+    // ----------------------------- //
     // ----- game loop methods ----- //
+    // ----------------------------- //
     private void generateNewTarget() {
         currentRound++;
 
@@ -124,6 +112,9 @@ public class GamePanel extends JPanel implements ActionListener {
         if (this.arduinoConnected) {
             this.serialWriter.turnOnCoils(bitString);
         }
+
+        // start new timing for a round
+        this.guessTimeList.add((double) System.currentTimeMillis());
     }
 
     private int calcDistance(Point a, Point b) {
@@ -156,12 +147,50 @@ public class GamePanel extends JPanel implements ActionListener {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    public ArrayList<Integer> getScores() {
-        return (ArrayList<Integer>)this.distList.clone();
+    private void manageGameTraversal(MouseEvent e) {
+        if (!roundsComplete) {
+
+            // if user has already made guess
+            if (guessExists) {
+
+                // display results screen
+                if (currentRound == MAX_ROUNDS) {
+                    roundsComplete = true;
+                    if (arduinoConnected) {
+                        serialWriter.turnOnCoils(RESET_COILS);
+                        serialWriter.closeSerialComm();
+                    }
+                    if (SaveUtil.SAVE_ENABLED) {
+                        SaveUtil.saveToCsv(username, distList, guessTimeList);
+                    }
+
+                // enter next round
+                } else if (currentRound < MAX_ROUNDS) {
+                    generateNewTarget();
+                    guessExists = false;
+                }
+
+            // user is currently making a new guess
+            } else { 
+                // record time taken for user to make guess
+                double startTime = guessTimeList.get(guessTimeList.size() -1);
+                double elapsedTime = (System.currentTimeMillis() - startTime) / 1000.0;
+                guessTimeList.set(guessTimeList.size() - 1, elapsedTime);
+
+                // make new guess for current round
+                guessPos = new Point(e.getX(), e.getY());
+                distList.add(calcDistance(guessPos, targetPos));
+                guessExists = true;
+                if (arduinoConnected) {
+                    serialWriter.turnOnCoils(RESET_COILS);
+                }
+            }
+        }
     }
    
+    // ----------------------------- //
     // ----- overriden methods ----- //
+    // ----------------------------- //
     @Override
     public void actionPerformed(ActionEvent e) {
         String command = e.getActionCommand();
@@ -194,7 +223,9 @@ public class GamePanel extends JPanel implements ActionListener {
         Toolkit.getDefaultToolkit().sync();
     }
    
+    // ----------------------- //
     // --- drawing methods --- //
+    // ----------------------- //
     private void drawText(Graphics g, String text, Font f, Color c, int width, int y) {
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -275,19 +306,23 @@ public class GamePanel extends JPanel implements ActionListener {
     }
 
     private void drawResultsScreen(Graphics g) {
+        DecimalFormat df = new DecimalFormat("#.##");
         int yScreen = (int) WINDOW_SIZE.getHeight()-(titleBarHeight + windowTopOffset);
         int ySpacing = (int) yScreen / 10;
-        drawText(g, "Results", new Font("Lato", Font.BOLD, 60), Color.BLACK, (int) WINDOW_SIZE.getWidth(), 100);
+        drawText(g, "Results for \""+username+"\"", new Font("Lato", Font.BOLD, 60), Color.BLACK, (int) WINDOW_SIZE.getWidth(), 100);
         Font scoreFont = new Font("Lato", Font.PLAIN, 40);
-        int sum = 0;
+        int sumScore = 0;
+        double sumTime = 0l;
         for (int idx=0; idx<5; idx++) {
-            sum += distList.get(idx);
-            String text = "Round "+(idx+1)+": "+distList.get(idx)+" pixels";
+            sumScore += distList.get(idx);
+            sumTime += guessTimeList.get(idx);
+            String text = "Round "+(idx+1)+": "+distList.get(idx)+" pixels, "+df.format(guessTimeList.get(idx))+" seconds";
             drawText(g, text, scoreFont, Color.BLACK, (int) WINDOW_SIZE.getWidth(), (idx+3)*ySpacing);
         }
-        int avg = (int) sum / 5;
+        int avgScore = (int) sumScore / 5;
+        double avgTime = (double) sumTime / 5.0;
         Font avgFont = new Font("Lato", Font.BOLD, 50);
-        drawText(g, "Average: "+avg+" pixels", avgFont, Color.BLACK, (int) WINDOW_SIZE.getWidth(), yScreen-100);
+        drawText(g, "Average: "+avgScore+" pixels, "+df.format(avgTime)+" seconds", avgFont, Color.BLACK, (int) WINDOW_SIZE.getWidth(), yScreen-100);
     }
     
 }
