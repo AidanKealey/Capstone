@@ -56,8 +56,8 @@ public class GamePanel extends JPanel implements ActionListener {
         this.guessExists = false;
         this.roundsComplete = false;
         this.currentRound = 0;
-        this.distList = new ArrayList<>();
-        this.magPosList = new ArrayList<>();
+        this.distList = new ArrayList<Integer>();
+        this.magPosList = new ArrayList<Point>();
         this.serialWriter = new ArduinoSerialWriter();
         this.serialWriter.setupSerialComm();
         this.arduinoConnected = this.serialWriter.isArduinoConnected();
@@ -154,6 +154,11 @@ public class GamePanel extends JPanel implements ActionListener {
                 this.magPosList.add(new Point(col*xSpacing, row*ySpacing));
             }
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    public ArrayList<Integer> getScores() {
+        return (ArrayList<Integer>)this.distList.clone();
     }
    
     // ----- overriden methods ----- //

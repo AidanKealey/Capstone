@@ -6,6 +6,7 @@
     ],
     "java.classpath": [
         "./TestEnvironmentGUI/src/",
-        "./TestEnvironmentGUI/lib/jSerialComm-2.10.4.jar"
+        "./TestEnvironmentGUI/lib/jSerialComm-2.10.4.jar",
+        "./TestEnvironmentGUI/lib/opencsv-5.9.jar"
     ]
 }
