@@ -28,6 +28,9 @@ public class GameController implements ActionListener {
     private JButton startButton;
     private JTextField nameTextField;
 
+    // --------------------------------- //
+    // --- constructor and listeners --- //
+    // --------------------------------- //
     public GameController() {
         this.frame = new JFrame();
         this.frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
@@ -68,6 +71,9 @@ public class GameController implements ActionListener {
         }
     }
 
+    // ----------------------------------- //
+    // --- screen navigation and setup --- //
+    // ----------------------------------- //
     private void initStartPanel() {
         this.onStartScreen = true;
         
@@ -115,9 +121,10 @@ public class GameController implements ActionListener {
             System.exit(0);
 
         } else {
-            int restartDialogButton = JOptionPane.showConfirmDialog (null, "Do you wish to restart?","Warning", JOptionPane.YES_NO_OPTION);
+            int restartDialogButton = JOptionPane.showConfirmDialog(null, "Do you wish to restart?");
+            
+            // restarting the app
             if (restartDialogButton == JOptionPane.YES_OPTION) {
-                // restarting the app
                 this.frame.getContentPane().remove(gamePanel);
                 initStartPanel();
                 this.frame.add(startPanel);
@@ -125,13 +132,10 @@ public class GameController implements ActionListener {
                 this.frame.revalidate();
                 this.frame.repaint();
     
-            } else {
-                // closing the app
-                int exitDialogButton = JOptionPane.showConfirmDialog (null, "Do you wish to close the app?","Warning", JOptionPane.YES_NO_OPTION);
-                if (exitDialogButton == JOptionPane.YES_OPTION) {
-                    this.frame.dispose();
-                    System.exit(0);
-                }
+            // closing the app
+            } else if (restartDialogButton == JOptionPane.NO_OPTION) {
+                this.frame.dispose();
+                System.exit(0);
             }
         }
     } 
