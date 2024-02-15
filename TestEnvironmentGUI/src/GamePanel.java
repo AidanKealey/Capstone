@@ -20,14 +20,6 @@ import javax.swing.Timer;
 
 public class GamePanel extends JPanel implements ActionListener {
 
-    private final int DELAY = 25; // 25 ms delay between ticks
-    private final int MAX_ROUNDS = 5;
-    private final int ACTIVATION_RADIUS = 300;
-    private final int MAGNET_RADIUS = 100;
-    private final int TARGET_RADIUS = 50;
-    private final int GUESS_RADIUS = 25;
-    private final String RESET_COILS = "00000000000000000000000";
-
     private static Color CUSTOM_GREEN;
 
     private int totalInsets;
@@ -70,7 +62,7 @@ public class GamePanel extends JPanel implements ActionListener {
         this.requestFocusInWindow();
 
         // set up tick functionality
-        this.timer = new Timer(DELAY, this);
+        this.timer = new Timer(Consts.DELAY, this);
         this.timer.setActionCommand("tick");
         this.timer.start();
 
@@ -90,8 +82,8 @@ public class GamePanel extends JPanel implements ActionListener {
         currentRound++;
 
         // randomly create new target x and y
-        int targetX = ThreadLocalRandom.current().nextInt(0+(2*TARGET_RADIUS), (int)GameController.windowDim.getWidth()-(2*TARGET_RADIUS)+1);
-        int targetY = ThreadLocalRandom.current().nextInt(0+(2*TARGET_RADIUS), (int)GameController.windowDim.getHeight()-(2*TARGET_RADIUS)+1);
+        int targetX = ThreadLocalRandom.current().nextInt(0+(2*Consts.TARGET_RADIUS), (int)GameController.windowDim.getWidth()-(2*Consts.TARGET_RADIUS)+1);
+        int targetY = ThreadLocalRandom.current().nextInt(0+(2*Consts.TARGET_RADIUS), (int)GameController.windowDim.getHeight()-(2*Consts.TARGET_RADIUS)+1);
         this.targetPos = new Point(targetX, targetY);
 
         // send activation string to arduino
@@ -112,7 +104,7 @@ public class GamePanel extends JPanel implements ActionListener {
         StringBuilder bitString = new StringBuilder(23);
         for (Point p : GameController.magPosList) {
             int hyp = calcDistance(p, this.targetPos);
-            int bit = (hyp < ACTIVATION_RADIUS) ? 1 : 0;
+            int bit = (hyp < Consts.ACTIVATION_RADIUS) ? 1 : 0;
             bitString.append(bit);
         }
         System.out.println("Round "+this.currentRound+": "+bitString.toString());
@@ -126,10 +118,10 @@ public class GamePanel extends JPanel implements ActionListener {
             if (guessExists) {
 
                 // display results screen
-                if (currentRound == MAX_ROUNDS) {
+                if (currentRound == Consts.MAX_ROUNDS) {
                     roundsComplete = true;
                     if (arduinoConnected) {
-                        serialWriter.turnOnCoils(RESET_COILS);
+                        serialWriter.turnOnCoils(Consts.RESET_COILS);
                         serialWriter.closeSerialComm();
                     }
                     if (SaveUtil.SAVE_ENABLED) {
@@ -137,7 +129,7 @@ public class GamePanel extends JPanel implements ActionListener {
                     }
 
                 // enter next round
-                } else if (currentRound < MAX_ROUNDS) {
+                } else if (currentRound < Consts.MAX_ROUNDS) {
                     generateNewTarget();
                     guessExists = false;
                 }
@@ -154,7 +146,7 @@ public class GamePanel extends JPanel implements ActionListener {
                 distList.add(calcDistance(guessPos, targetPos));
                 guessExists = true;
                 if (arduinoConnected) {
-                    serialWriter.turnOnCoils(RESET_COILS);
+                    serialWriter.turnOnCoils(Consts.RESET_COILS);
                 }
             }
         }
@@ -230,7 +222,7 @@ public class GamePanel extends JPanel implements ActionListener {
     private void drawGuessCircle(Graphics g) {
         if (this.guessExists) {
             g.setColor(Color.ORANGE);
-            g.fillOval(guessPos.x-GUESS_RADIUS, guessPos.y-GUESS_RADIUS, 2*GUESS_RADIUS, 2*GUESS_RADIUS);
+            g.fillOval(guessPos.x-Consts.GUESS_RADIUS, guessPos.y-Consts.GUESS_RADIUS, 2*Consts.GUESS_RADIUS, 2*Consts.GUESS_RADIUS);
             g.setColor(Color.BLACK);
             g.drawLine(guessPos.x, guessPos.y, targetPos.x, targetPos.y);
             String text = "Distance to target: "+calcDistance(guessPos, targetPos)+" pixels";
@@ -242,21 +234,21 @@ public class GamePanel extends JPanel implements ActionListener {
 
     private void drawTargetCircle(Graphics g) {
         g.setColor(CUSTOM_GREEN);
-        g.fillOval(targetPos.x-TARGET_RADIUS, targetPos.y-TARGET_RADIUS, 2*TARGET_RADIUS, 2*TARGET_RADIUS);
+        g.fillOval(targetPos.x-Consts.TARGET_RADIUS, targetPos.y-Consts.TARGET_RADIUS, 2*Consts.TARGET_RADIUS, 2*Consts.TARGET_RADIUS);
         g.setColor(Color.RED);
-        g.drawOval(targetPos.x-ACTIVATION_RADIUS, targetPos.y-ACTIVATION_RADIUS, 2*ACTIVATION_RADIUS, 2*ACTIVATION_RADIUS);
+        g.drawOval(targetPos.x-Consts.ACTIVATION_RADIUS, targetPos.y-Consts.ACTIVATION_RADIUS, 2*Consts.ACTIVATION_RADIUS, 2*Consts.ACTIVATION_RADIUS);
     }
 
     private void drawMagnetCircles(Graphics g) {
         for (Point p : GameController.magPosList) {
             int hyp = calcDistance(p, this.targetPos);
-            if (hyp < ACTIVATION_RADIUS) {
+            if (hyp < Consts.ACTIVATION_RADIUS) {
                 g.setColor(Color.blue);
                 g.fillOval(p.x-5, p.y-5, 10, 10);
             } else {
                 g.setColor(Color.gray);
             }
-            g.drawOval(p.x-MAGNET_RADIUS, p.y-MAGNET_RADIUS, MAGNET_RADIUS*2, MAGNET_RADIUS*2);
+            g.drawOval(p.x-Consts.MAGNET_RADIUS, p.y-Consts.MAGNET_RADIUS, Consts.MAGNET_RADIUS*2, Consts.MAGNET_RADIUS*2);
         }
     }
 
