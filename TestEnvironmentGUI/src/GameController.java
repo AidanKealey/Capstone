@@ -156,11 +156,17 @@ public class GameController implements ActionListener {
             System.exit(0);
 
         } else {
-            int restartDialogButton = JOptionPane.showConfirmDialog(null, "Do you wish to restart?");
+            Object options[] = { "Yes, exit", "Restart testing", "Cancel" };
+            int restartDialogButton = JOptionPane.showOptionDialog(frame, "Are you sure you want to exit?", 
+                "Select an Option", JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
             
             // restarting the app
-            if (restartDialogButton == JOptionPane.YES_OPTION) {
-                this.frame.getContentPane().remove(gamePanel);
+            if (restartDialogButton == JOptionPane.NO_OPTION) {
+                if (onCalibrationScreen) {
+                    this.frame.getContentPane().remove(calibrationPanel);
+                } else {
+                    this.frame.getContentPane().remove(gamePanel);
+                }
                 initStartPanel();
                 this.frame.add(startPanel);
                 this.frame.pack();
@@ -168,7 +174,7 @@ public class GameController implements ActionListener {
                 this.frame.repaint();
     
             // closing the app
-            } else if (restartDialogButton == JOptionPane.NO_OPTION) {
+            } else if (restartDialogButton == JOptionPane.YES_OPTION) {
                 this.frame.dispose();
                 System.exit(0);
             }
