@@ -1,14 +1,13 @@
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 
 import com.opencsv.CSVWriter;
 
 public class SaveUtil {
-    
-    public final static boolean SAVE_ENABLED = true;
-    private final static String CSV_PATH = "./userdata.csv";
 
     public static void saveToCsv(String username, ArrayList<Integer> scores, ArrayList<Double> times) {
         System.out.println("Saving score data for user: \""+username+"\"...");
@@ -22,7 +21,8 @@ public class SaveUtil {
         }
 
         // write data to csv file
-        File file = new File(CSV_PATH);
+        String path = Consts.CSV_PATH + getTodayDate() + ".csv";
+        File file = new File(path);
         try {
             CSVWriter writer = new CSVWriter(new FileWriter(file, true));
             writer.writeNext(data);
@@ -31,6 +31,12 @@ public class SaveUtil {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private static String getTodayDate() {
+        Calendar c = Calendar.getInstance();
+        SimpleDateFormat sdf = new SimpleDateFormat(Consts.DATE_FORMAT_TODAY);
+        return sdf.format(c.getTime());
     }
 
 }

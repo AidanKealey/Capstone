@@ -1,5 +1,11 @@
 public class Consts {
 
+    // save util
+    public final static boolean SAVE_ENABLED = true;
+    public final static String CSV_PATH = "./TestEnvironmentGUI/data/";
+    // public final static String CSV_PATH = "./userdata.csv";
+    public final static String DATE_FORMAT_TODAY = "yyyy-MM-dd";
+
     // game loop
     public static final int DELAY = 25; // 25 ms delay between ticks
     public static final int MAX_ROUNDS = 5;

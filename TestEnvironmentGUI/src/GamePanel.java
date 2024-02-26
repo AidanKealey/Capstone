@@ -124,7 +124,7 @@ public class GamePanel extends JPanel implements ActionListener {
                         serialWriter.turnOnCoils(Consts.RESET_COILS);
                         serialWriter.closeSerialComm();
                     }
-                    if (SaveUtil.SAVE_ENABLED) {
+                    if (Consts.SAVE_ENABLED) {
                         SaveUtil.saveToCsv(username, distList, guessTimeList);
                     }
 
