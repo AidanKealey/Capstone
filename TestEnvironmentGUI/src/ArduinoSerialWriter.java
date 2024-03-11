@@ -7,7 +7,8 @@ public class ArduinoSerialWriter {
         // Find and open the serial port
         SerialPort[] ports = SerialPort.getCommPorts();
         for (SerialPort port : ports) {
-            if (port.getSystemPortName().equals("COM3")) { // Replace "COM3" with your Arduino's port
+            if (port.getSystemPortName().contains(Consts.PORT_NAME)) {
+                System.out.println("Found correct port!");
                 this.serialPort = port;
                 break;
             }
@@ -23,6 +24,7 @@ public class ArduinoSerialWriter {
     }
 
     public void closeSerialComm(){
+        turnOnCoils(Consts.RESET_COILS);
         this.serialPort.closePort();
     }
 

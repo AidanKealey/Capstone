@@ -1,3 +1,4 @@
+import java.awt.AWTException;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
@@ -7,6 +8,7 @@ import java.awt.MouseInfo;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.Robot;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -24,17 +26,15 @@ public class GamePanel extends JPanel implements ActionListener {
 
     private int totalInsets;
     private int currentRound;
+    private int numClicks;
     private Timer timer;
     private Point mousePos;
     private Point targetPos;
     private Point guessPos;
     private String username;
-    private boolean guessExists;
     private boolean roundsComplete;
-    private boolean arduinoConnected;
     private ArrayList<Integer> distList;
     private ArrayList<Double> guessTimeList;
-    private ArduinoSerialWriter serialWriter;
 
     // -------------------------------- //
     // ----- constructor and init ----- //
@@ -42,18 +42,14 @@ public class GamePanel extends JPanel implements ActionListener {
     public GamePanel(String username) {
         CUSTOM_GREEN = new Color(30, 201, 139);
         this.totalInsets = GameController.windowTopOffset + GameController.titleBarHeight;
-        this.guessExists = false;
-        this.roundsComplete = false;
         this.currentRound = 0;
+        this.numClicks = 0;
         this.username = username;
         this.distList = new ArrayList<Integer>();
         this.guessTimeList = new ArrayList<Double>();
-        this.serialWriter = new ArduinoSerialWriter();
-        this.serialWriter.setupSerialComm();
-        this.arduinoConnected = this.serialWriter.isArduinoConnected();
-
-        // set initial random target
-        generateNewTarget();
+        
+        // set up calibration
+        startMouseCalibration();
 
         // set up JPanel stuff
         this.setPreferredSize(GameController.windowDim);
@@ -78,22 +74,70 @@ public class GamePanel extends JPanel implements ActionListener {
     // ----------------------------- //
     // ----- game loop methods ----- //
     // ----------------------------- //
+    private void startMouseCalibration() {
+        if (GameController.arduinoConnected) {
+            GameController.serialWriter.turnOnCoils(Consts.CALIBRATE_COILS);
+        }
+        numClicks = 0;
+    }
+
+    private void finishMouseCalibration() {
+        if (GameController.arduinoConnected) {
+            GameController.serialWriter.turnOnCoils(Consts.RESET_COILS);
+        }
+        setCursorInMiddle();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void setCursorInMiddle() {
+        try {
+            Robot robot = new Robot();
+            int centerX = GameController.magPosList.get(11).x;
+            int centerY = GameController.magPosList.get(11).y + 65;
+            robot.mouseMove(centerX, centerY);
+        } catch (AWTException ex) {
+            ex.printStackTrace();
+        }
+    }
+
     private void generateNewTarget() {
         currentRound++;
-
         // randomly create new target x and y
         int targetX = ThreadLocalRandom.current().nextInt(0+(2*Consts.TARGET_RADIUS), (int)GameController.windowDim.getWidth()-(2*Consts.TARGET_RADIUS)+1);
         int targetY = ThreadLocalRandom.current().nextInt(0+(2*Consts.TARGET_RADIUS), (int)GameController.windowDim.getHeight()-(2*Consts.TARGET_RADIUS)+1);
         this.targetPos = new Point(targetX, targetY);
-
         // send activation string to arduino
         String bitString = genCoilSerialString();
-        if (this.arduinoConnected) {
-            this.serialWriter.turnOnCoils(bitString);
+        if (GameController.arduinoConnected) {
+            GameController.serialWriter.turnOnCoils(bitString);
         }
-
         // start new timing for a round
         this.guessTimeList.add((double) System.currentTimeMillis());
+    }
+
+    private void makeNewGuess(MouseEvent e) {;
+        // record time taken for user to make guess
+        double startTime = guessTimeList.get(guessTimeList.size() - 1);
+        double elapsedTime = (System.currentTimeMillis() - startTime) / 1000.0;
+        guessTimeList.set(guessTimeList.size() - 1, elapsedTime);
+        // make new guess for current round
+        guessPos = new Point(e.getX(), e.getY());
+        distList.add(calcDistance(guessPos, targetPos));
+        if (GameController.arduinoConnected) {
+            GameController.serialWriter.turnOnCoils(Consts.RESET_COILS);
+        }
+    }
+
+    private void finishGame() {
+        if (GameController.arduinoConnected)
+            GameController.serialWriter.turnOnCoils(Consts.RESET_COILS);
+        if (Consts.SAVE_ENABLED)
+            SaveUtil.saveToCsv(username, distList, guessTimeList);
+        roundsComplete = true;
     }
 
     private int calcDistance(Point a, Point b) {
@@ -114,40 +158,25 @@ public class GamePanel extends JPanel implements ActionListener {
     private void manageGameTraversal(MouseEvent e) {
         if (!roundsComplete) {
 
-            // if user has already made guess
-            if (guessExists) {
+            numClicks++;
 
-                // display results screen
-                if (currentRound == Consts.MAX_ROUNDS) {
-                    roundsComplete = true;
-                    if (arduinoConnected) {
-                        serialWriter.turnOnCoils(Consts.RESET_COILS);
-                        serialWriter.closeSerialComm();
-                    }
-                    if (Consts.SAVE_ENABLED) {
-                        SaveUtil.saveToCsv(username, distList, guessTimeList);
-                    }
-
-                // enter next round
-                } else if (currentRound < Consts.MAX_ROUNDS) {
+            switch(numClicks) {
+                case 1: // finish mouse calibration
+                    finishMouseCalibration();
                     generateNewTarget();
-                    guessExists = false;
-                }
-
-            // user is currently making a new guess
-            } else { 
-                // record time taken for user to make guess
-                double startTime = guessTimeList.get(guessTimeList.size() -1);
-                double elapsedTime = (System.currentTimeMillis() - startTime) / 1000.0;
-                guessTimeList.set(guessTimeList.size() - 1, elapsedTime);
-
-                // make new guess for current round
-                guessPos = new Point(e.getX(), e.getY());
-                distList.add(calcDistance(guessPos, targetPos));
-                guessExists = true;
-                if (arduinoConnected) {
-                    serialWriter.turnOnCoils(Consts.RESET_COILS);
-                }
+                    break;
+                case 2: // user makes a guess
+                    makeNewGuess(e);
+                    break;
+                case 3: // user is ready to recalibrate or show final results
+                    if (currentRound == Consts.MAX_ROUNDS)
+                        finishGame();
+                    else 
+                        startMouseCalibration();
+                    break;
+                default: 
+                    System.out.println("numClicks variable out of bounds for manageGameTraversal()");
+                    break;
             }
         }
     }
@@ -172,14 +201,23 @@ public class GamePanel extends JPanel implements ActionListener {
         if (roundsComplete) {
             drawResultsScreen(g);
         } else {
-            if (guessExists) {
-                drawMagnetCircles(g);
-                drawMousePosLabel(g);
-                drawTargetCircle(g);
-                drawGuessCircle(g);
-                drawNextRoundInstructions(g);
-            } else {
-                drawGuessScreen(g);
+            switch(numClicks) {
+                case 0: 
+                    drawCalibrationScreen(g);
+                    break;
+                case 1: 
+                    drawGuessScreen(g);
+                    break;
+                case 2: 
+                    drawMagnetCircles(g);
+                    drawMousePosLabel(g);
+                    drawTargetCircle(g);
+                    drawGuessCircle(g);
+                    drawNextRoundInstructions(g);
+                    break;
+                default: 
+                    System.out.println("numClicks variable out of bounds for paintComponent()");
+                    break;
             }
         }
 
@@ -220,16 +258,13 @@ public class GamePanel extends JPanel implements ActionListener {
     }
 
     private void drawGuessCircle(Graphics g) {
-        if (this.guessExists) {
-            g.setColor(Color.ORANGE);
-            g.fillOval(guessPos.x-Consts.GUESS_RADIUS, guessPos.y-Consts.GUESS_RADIUS, 2*Consts.GUESS_RADIUS, 2*Consts.GUESS_RADIUS);
-            g.setColor(Color.BLACK);
-            g.drawLine(guessPos.x, guessPos.y, targetPos.x, targetPos.y);
-            String text = "Distance to target: "+calcDistance(guessPos, targetPos)+" pixels";
-            int yCoord = 5;
-            Font f = new Font("Lato", Font.BOLD, 30);
-            drawText(g, text, f, Color.BLACK, (int) GameController.windowDim.getWidth(), yCoord);
-        }
+        g.setColor(Color.ORANGE);
+        g.fillOval(guessPos.x-Consts.GUESS_RADIUS, guessPos.y-Consts.GUESS_RADIUS, 2*Consts.GUESS_RADIUS, 2*Consts.GUESS_RADIUS);
+        g.setColor(Color.BLACK);
+        g.drawLine(guessPos.x, guessPos.y, targetPos.x, targetPos.y);
+        String text = "Round "+currentRound+" distance to target: "+calcDistance(guessPos, targetPos)+" pixels";
+        Font f = new Font("Lato", Font.BOLD, 30);
+        drawText(g, text, f, Color.BLACK, (int) GameController.windowDim.getWidth(), 5);
     }
 
     private void drawTargetCircle(Graphics g) {
@@ -253,6 +288,12 @@ public class GamePanel extends JPanel implements ActionListener {
     }
 
     private void drawGuessScreen(Graphics g) {
+        // draw example circles in grey
+        for (Point p : GameController.magPosList) {
+            g.setColor(Color.gray);
+            g.drawOval(p.x-Consts.MAGNET_RADIUS, p.y-Consts.MAGNET_RADIUS, Consts.MAGNET_RADIUS*2, Consts.MAGNET_RADIUS*2);
+        }
+        // draw text
         int yCoord = (int) (GameController.windowDim.getHeight()-totalInsets) / 4;
         Font f1 = new Font("Lato", Font.BOLD, 75);
         Font f2 = new Font("Lato", Font.BOLD, 40);
@@ -263,7 +304,7 @@ public class GamePanel extends JPanel implements ActionListener {
     }
 
     private void drawNextRoundInstructions(Graphics g) {
-        int yCoord = (int) (GameController.windowDim.getHeight()-totalInsets) - 40;
+        int yCoord = (int) (GameController.windowDim.getHeight()-totalInsets) - 60;
         Font f = new Font("Lato", Font.BOLD, 60);
         String text = "CLICK anywhere for next round...";
         drawText(g, text, f, Color.BLACK, (int) GameController.windowDim.getWidth(), yCoord);
@@ -287,6 +328,24 @@ public class GamePanel extends JPanel implements ActionListener {
         double avgTime = (double) sumTime / 5.0;
         Font avgFont = new Font("Lato", Font.BOLD, 50);
         drawText(g, "Average: "+avgScore+" pixels, "+df.format(avgTime)+" seconds", avgFont, Color.BLACK, (int) GameController.windowDim.getWidth(), yScreen-100);
+    }
+
+    private void drawCalibrationScreen(Graphics g) {
+        // draw magnet location circles with highlited center
+        for (int i=0; i<GameController.magPosList.size(); i++) {
+            Point p = GameController.magPosList.get(i);
+            if (i==11) {
+                g.setColor(Color.blue);
+                g.fillOval(p.x-5, p.y-5, 10, 10);
+            } else {
+                g.setColor(Color.gray);
+            }
+            g.drawOval(p.x-Consts.MAGNET_RADIUS, p.y-Consts.MAGNET_RADIUS, Consts.MAGNET_RADIUS*2, Consts.MAGNET_RADIUS*2);
+        }
+        // draw title
+        Font f = new Font("Lato", Font.PLAIN, 30);
+        String title = "Place the mouse in the center of the mouse pad and CLICK";
+        drawText(g, title, f, Color.BLACK, (int) GameController.windowDim.getWidth(), 5);
     }
 
     

@@ -1,9 +1,11 @@
 public class Consts {
 
+    // serial communication
+    public static final String PORT_NAME = "cu.usbmodem";
+
     // save util
     public final static boolean SAVE_ENABLED = true;
     public final static String CSV_PATH = "./TestEnvironmentGUI/data/";
-    // public final static String CSV_PATH = "./userdata.csv";
     public final static String DATE_FORMAT_TODAY = "yyyy-MM-dd";
 
     // game loop

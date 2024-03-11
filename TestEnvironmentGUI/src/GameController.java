@@ -8,12 +8,9 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.ArrayList;
-
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -27,14 +24,14 @@ public class GameController implements ActionListener {
     public static int windowTopOffset;
     public static Dimension windowDim;
     public static ArrayList<Point> magPosList;
+    public static ArduinoSerialWriter serialWriter;
+    public static boolean arduinoConnected;
 
     private boolean onStartScreen;
-    private boolean onCalibrationScreen;
     private String username;
 
     private JFrame frame;
     private JPanel startPanel;
-    private CalibrationPanel calibrationPanel;
     private GamePanel gamePanel;
     private JButton startButton;
     private JTextField nameTextField;
@@ -51,9 +48,13 @@ public class GameController implements ActionListener {
         windowDim = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds().getSize();
         this.frame.setPreferredSize(windowDim);
         
+        // set up global serial writer
+        GameController.serialWriter = new ArduinoSerialWriter();
+        GameController.serialWriter.setupSerialComm();
+        GameController.arduinoConnected = GameController.serialWriter.isArduinoConnected();
+
         // set up other global variables
         this.onStartScreen = false;
-        this.onCalibrationScreen = false;
         this.username = "";
         titleBarHeight = this.frame.getY();
         windowTopOffset = this.frame.getInsets().top;
@@ -74,13 +75,6 @@ public class GameController implements ActionListener {
                 restartPrompt();
             }
         });
-
-        this.frame.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                openGamePanel();
-            }
-        });
     }
 
     // ------------------------- //
@@ -88,7 +82,7 @@ public class GameController implements ActionListener {
     // ------------------------- //
     @Override
     public void actionPerformed(ActionEvent e) {
-        openCalibrationPanel(e);
+        openGamePanel(e);
     }
 
     // ----------------------------------- //
@@ -152,6 +146,8 @@ public class GameController implements ActionListener {
 
     private void restartPrompt() {
         if (onStartScreen) {
+            if (arduinoConnected)
+                serialWriter.closeSerialComm();
             this.frame.dispose();
             System.exit(0);
 
@@ -162,11 +158,7 @@ public class GameController implements ActionListener {
             
             // restarting the app
             if (restartDialogButton == JOptionPane.NO_OPTION) {
-                if (onCalibrationScreen) {
-                    this.frame.getContentPane().remove(calibrationPanel);
-                } else {
-                    this.frame.getContentPane().remove(gamePanel);
-                }
+                this.frame.getContentPane().remove(gamePanel);
                 initStartPanel();
                 this.frame.add(startPanel);
                 this.frame.pack();
@@ -175,13 +167,15 @@ public class GameController implements ActionListener {
     
             // closing the app
             } else if (restartDialogButton == JOptionPane.YES_OPTION) {
+                if (arduinoConnected)
+                    serialWriter.closeSerialComm();
                 this.frame.dispose();
                 System.exit(0);
             }
         }
     } 
 
-    private void openCalibrationPanel(ActionEvent e) {
+    private void openGamePanel(ActionEvent e) {
         String command = e.getActionCommand();
         if (command.equals("Press to Start")) {
             String name = this.nameTextField.getText().toLowerCase();
@@ -190,32 +184,13 @@ public class GameController implements ActionListener {
             } else {
                 this.username = name;
                 this.onStartScreen = false;
-                this.calibrationPanel = new CalibrationPanel();
+                this.gamePanel = new GamePanel(this.username);
                 this.frame.getContentPane().remove(startPanel);
-                this.frame.add(this.calibrationPanel);
+                this.frame.add(this.gamePanel);
                 this.frame.pack();
                 this.frame.revalidate();
                 this.frame.repaint();
-                this.onCalibrationScreen = true;
             }
-        }
-    }
-
-    private void openGamePanel() {
-        if (this.onCalibrationScreen) {
-            this.calibrationPanel.finishCalibration();
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            this.onCalibrationScreen = false;
-            this.gamePanel = new GamePanel(this.username);
-            this.frame.getContentPane().remove(this.calibrationPanel);
-            this.frame.add(this.gamePanel);
-            this.frame.pack();
-            this.frame.revalidate();
-            this.frame.repaint();
         }
     }
 
